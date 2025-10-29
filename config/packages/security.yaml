@@ -1,0 +1,58 @@
+security:
+    # Hashage des mots de passe de l'entité User
+    password_hashers:
+        App\Entity\User:
+            algorithm: auto
+
+    # Provider utilisateur : Symfony va chercher les utilisateurs via l'entité User
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Entity\User
+                property: email
+
+    # Firewalls (zones de sécurité)
+    firewalls:
+        # Pas de sécurité pour le debug, CSS, JS, images...
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+
+        # Route publique pour la connexion JWT
+        login:
+            pattern: ^/api/login
+            stateless: true
+            json_login:
+                check_path: /api/login_check # URL du login
+                success_handler: lexik_jwt_authentication.handler.authentication_success # génère le token JWT
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure # erreur JSON si échec
+
+        # Zone protégée : toutes les routes /api nécessitent un JWT valide
+        api:
+            pattern: ^/api
+            stateless: true
+            jwt: ~
+
+        # Firewall principal géré par Symfony, nécessaire au bon fonctionnement global de la sécurité
+        main:
+            lazy: true
+            provider: app_user_provider
+
+    # Règles d’accès
+    access_control:
+        # Permet à un utilisateur non authentifié d'accéder à la route /api/login_check
+        # afin de s’identifier et obtenir un token JWT
+        - { path: ^/api/login, roles: PUBLIC_ACCESS }
+
+        # Toutes les autres routes /api nécessitent un JWT valide
+        # Seules les requêtes contenant un token valide dans le header Authorization sont autorisées
+        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
+
+when@test:
+    security:
+        password_hashers:
+            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+                algorithm: auto
+                cost: 4
+                time_cost: 3
+                memory_cost: 10
