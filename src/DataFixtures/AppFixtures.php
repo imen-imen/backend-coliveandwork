@@ -5,6 +5,8 @@ namespace App\DataFixtures;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
 use Faker\Factory;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+
 
 // === Entités ===
 use App\Entity\Address;
@@ -21,6 +23,12 @@ use App\Entity\VerificationUser;
 
 class AppFixtures extends Fixture
 {
+    private UserPasswordHasherInterface $passwordHasher;
+
+    public function __construct(UserPasswordHasherInterface $passwordHasher)
+    {
+        $this->passwordHasher = $passwordHasher;
+    }
     public function load(ObjectManager $manager): void
     {
         $faker = Factory::create('fr_FR');
@@ -109,6 +117,19 @@ class AppFixtures extends Fixture
             $manager->persist($client);
             $this->addReference("client_$i", $client);
         }
+
+        // === Utilisateur de test pour JWT ===
+        $user = new User();
+        $user->setEmail('test@example.com')
+            ->setFirstname('Test')
+            ->setLastname('User')
+            ->setPassword($this->passwordHasher->hashPassword($user, 'password123'))
+            ->setRoles(['ROLE_USER'])
+            ->setAddress($this->getReference('address_' . rand(1, 40), Address::class));
+
+        $manager->persist($user);
+        $this->addReference('user_test', $user);
+
 
         /* AMENITIES */
         $amenityNames = [

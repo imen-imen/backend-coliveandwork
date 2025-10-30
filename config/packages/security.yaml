@@ -24,6 +24,8 @@ security:
             stateless: true
             json_login:
                 check_path: /api/login_check # URL du login
+                username_path: email # Nom du champ utilisé pour l'identifiant (ici, l'email)
+                password_path: password # Nom du champ pour le mot de passe
                 success_handler: lexik_jwt_authentication.handler.authentication_success # génère le token JWT
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure # erreur JSON si échec
 
