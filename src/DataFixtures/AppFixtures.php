@@ -73,9 +73,9 @@ class AppFixtures extends Fixture
         $admin->setEmail('admin@coliveandwork.fr')
             ->setFirstname('Admin')
             ->setLastname('Root')
-            ->setPassword('password')
             ->setRoles(['ROLE_ADMIN'])
             ->setAddress($this->getReference('address_' . rand(1, 40), Address::class));
+        $admin->setPassword($this->passwordHasher->hashPassword($admin, 'Admin1234!'));
         $manager->persist($admin);
         $this->addReference('user_admin', $admin);
 
@@ -85,9 +85,9 @@ class AppFixtures extends Fixture
             $employee->setEmail("employee$i@coliveandwork.fr")
                 ->setFirstname($faker->firstName)
                 ->setLastname($faker->lastName)
-                ->setPassword('password')
                 ->setRoles(['ROLE_EMPLOYEE'])
                 ->setAddress($this->getReference('address_' . rand(1, 40), Address::class));
+            $employee->setPassword($this->passwordHasher->hashPassword($employee, 'Employee123!'));
             $manager->persist($employee);
             $this->addReference("employee_$i", $employee);
         }
@@ -98,9 +98,9 @@ class AppFixtures extends Fixture
             $owner->setEmail($faker->unique()->safeEmail)
                 ->setFirstname($faker->firstName)
                 ->setLastname($faker->lastName)
-                ->setPassword('password')
                 ->setRoles(['ROLE_OWNER'])
                 ->setAddress($this->getReference('address_' . rand(1, 40), Address::class));
+            $owner->setPassword($this->passwordHasher->hashPassword($owner, 'Owner123!'));
             $manager->persist($owner);
             $this->addReference("owner_$i", $owner);
         }
@@ -111,9 +111,9 @@ class AppFixtures extends Fixture
             $client->setEmail($faker->unique()->safeEmail)
                 ->setFirstname($faker->firstName)
                 ->setLastname($faker->lastName)
-                ->setPassword('password')
                 ->setRoles(['ROLE_USER'])
                 ->setAddress($this->getReference('address_' . rand(1, 40), Address::class));
+            $client->setPassword($this->passwordHasher->hashPassword($client, 'Client123!'));
             $manager->persist($client);
             $this->addReference("client_$i", $client);
         }
@@ -123,10 +123,9 @@ class AppFixtures extends Fixture
         $user->setEmail('test@example.com')
             ->setFirstname('Test')
             ->setLastname('User')
-            ->setPassword($this->passwordHasher->hashPassword($user, 'password123'))
             ->setRoles(['ROLE_USER'])
             ->setAddress($this->getReference('address_' . rand(1, 40), Address::class));
-
+        $user->setPassword($this->passwordHasher->hashPassword($user, 'password123'));
         $manager->persist($user);
         $this->addReference('user_test', $user);
 

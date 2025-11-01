@@ -1,53 +1,51 @@
 security:
-    # Hashage des mots de passe de l'entité User
+    # Hashage des mots de passe
     password_hashers:
         App\Entity\User:
             algorithm: auto
 
-    # Provider utilisateur : Symfony va chercher les utilisateurs via l'entité User
+    # Chargement des utilisateurs depuis l'entité User
     providers:
         app_user_provider:
             entity:
                 class: App\Entity\User
                 property: email
 
-    # Firewalls (zones de sécurité)
     firewalls:
-        # Pas de sécurité pour le debug, CSS, JS, images...
+        # Exclut les routes internes de Symfony (debug, assets…)
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
 
-        # Route publique pour la connexion JWT
-        login:
-            pattern: ^/api/login
-            stateless: true
-            json_login:
-                check_path: /api/login_check # URL du login
-                username_path: email # Nom du champ utilisé pour l'identifiant (ici, l'email)
-                password_path: password # Nom du champ pour le mot de passe
-                success_handler: lexik_jwt_authentication.handler.authentication_success # génère le token JWT
-                failure_handler: lexik_jwt_authentication.handler.authentication_failure # erreur JSON si échec
-
-        # Zone protégée : toutes les routes /api nécessitent un JWT valide
+        # Firewall principal pour toutes les routes /api
         api:
             pattern: ^/api
-            stateless: true
+            stateless: true     # Pas de session, tout passe par le token
+            entry_point: jwt
+
+            # Connexion : envoie email + password à /api/login_check
+            json_login:
+                check_path: /api/login_check
+                username_path: email
+                password_path: password
+                success_handler: lexik_jwt_authentication.handler.authentication_success                
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+
+            # Vérifie le JWT sur les routes protégées
             jwt: ~
 
-        # Firewall principal géré par Symfony, nécessaire au bon fonctionnement global de la sécurité
+            # Rafraîchit le JWT avec le refresh_token
+            refresh_jwt:
+                check_path: /api/token/refresh
+
+        # Firewall principal Symfony (non utilisé ici mais requis)
         main:
             lazy: true
             provider: app_user_provider
 
-    # Règles d’accès
+    # Autorise les routes publiques et protège le reste
     access_control:
-        # Permet à un utilisateur non authentifié d'accéder à la route /api/login_check
-        # afin de s’identifier et obtenir un token JWT
-        - { path: ^/api/login, roles: PUBLIC_ACCESS }
-
-        # Toutes les autres routes /api nécessitent un JWT valide
-        # Seules les requêtes contenant un token valide dans le header Authorization sont autorisées
+        - { path: ^/api/(login|token/refresh), roles: PUBLIC_ACCESS }
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
 when@test:
