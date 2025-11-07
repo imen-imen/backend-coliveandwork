@@ -3,64 +3,72 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use App\Repository\AddressRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-// Entité pour gérer les adresses (utilisée par les utilisateurs et les espaces coliving)
+/**
+ * Entité : Address (Adresse)
+ * Utilisée par : User + ColivingSpace
+ * Lecture publique uniquement
+ * Sert à afficher les localisations et filtrer les espaces
+ */
 #[ORM\Entity(repositoryClass: AddressRepository::class)]
-#[ApiResource]
 #[ORM\Table(name: 'address')]
+#[ApiResource(
+    operations: [
+        // Lecture publique — tout le monde peut consulter les adresses
+        new GetCollection(
+            security: "is_granted('PUBLIC_ACCESS')"
+        ),
+        new Get(
+            security: "is_granted('PUBLIC_ACCESS')"
+        ),
+    ]
+)]
+#[ApiFilter(SearchFilter::class, properties: [
+    'streetName' => 'ipartial',   // recherche partielle sur le nom de rue
+    'postalCode' => 'iexact',     // correspondance exacte du code postal
+    'otherCityName' => 'ipartial', // nom de la ville (autre)
+    'regionName' => 'ipartial',   // recherche partielle sur la région
+    'countryName' => 'ipartial'   // recherche partielle sur le pays
+])]
 class Address
 {
-    // Identifiant unique auto-généré
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
-    // Numéro de rue (ex: "12")
     #[ORM\Column(length: 10, nullable: true)]
     private ?string $streetNumber = null;
 
-    // Nom de la rue (ex: "Rue des Lilas")
     #[ORM\Column(length: 100)]
     private ?string $streetName = null;
 
-    // Code postal (ex: "69001")
     #[ORM\Column(length: 20)]
     private ?string $postalCode = null;
 
-    // Autre nom de ville (si différent de la ville principale)
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $otherCityName = null;
 
-    // Nom de la région (ex: "Auvergne-Rhône-Alpes")
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $regionName = null;
 
-    // Nom du pays (ex: "France")
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $countryName = null;
 
-    // Longitude GPS (ex: "4.835659")
     #[ORM\Column(type: Types::DECIMAL, precision: 9, scale: 6, nullable: true)]
     private ?string $longitude = null;
 
-    // Latitude GPS (ex: "45.764043")
     #[ORM\Column(type: Types::DECIMAL, precision: 9, scale: 6, nullable: true)]
     private ?string $latitude = null;
-
-    // Ville de coliving à laquelle cette adresse est rattachée (relation récursive)
-    #[ORM\ManyToOne(inversedBy: 'addresses')]
-    #[ORM\JoinColumn(name: 'coliving_city_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    private ?Address $colivingCity = null;
-
-    // Liste des adresses rattachées à cette ville de coliving
-    #[ORM\OneToMany(targetEntity: Address::class, mappedBy: 'colivingCity')]
-    private Collection $addresses;
 
     // Espaces coliving associés à cette adresse
     #[ORM\OneToMany(targetEntity: ColivingSpace::class, mappedBy: 'address')]
@@ -72,11 +80,11 @@ class Address
 
     public function __construct()
     {
-        $this->addresses = new ArrayCollection();
         $this->colivingSpaces = new ArrayCollection();
         $this->users = new ArrayCollection();
     }
 
+    // === Getters / Setters ===
     public function getId(): ?int { return $this->id; }
 
     public function getStreetNumber(): ?string { return $this->streetNumber; }
@@ -127,38 +135,8 @@ class Address
         return $this;
     }
 
-    public function getColivingCity(): ?Address { return $this->colivingCity; }
-    public function setColivingCity(?Address $colivingCity): static {
-        $this->colivingCity = $colivingCity;
-        return $this;
-    }
-
-    /** @return Collection<int, Address> */
-    public function getAddresses(): Collection {
-        return $this->addresses;
-    }
-
-    public function addAddress(Address $address): static {
-        if (!$this->addresses->contains($address)) {
-            $this->addresses->add($address);
-            $address->setColivingCity($this);
-        }
-        return $this;
-    }
-
-    public function removeAddress(Address $address): static {
-        if ($this->addresses->removeElement($address)) {
-            if ($address->getColivingCity() === $this) {
-                $address->setColivingCity(null);
-            }
-        }
-        return $this;
-    }
-
     /** @return Collection<int, ColivingSpace> */
-    public function getColivingSpaces(): Collection {
-        return $this->colivingSpaces;
-    }
+    public function getColivingSpaces(): Collection { return $this->colivingSpaces; }
 
     public function addColivingSpace(ColivingSpace $colivingSpace): static {
         if (!$this->colivingSpaces->contains($colivingSpace)) {
@@ -178,9 +156,7 @@ class Address
     }
 
     /** @return Collection<int, User> */
-    public function getUsers(): Collection {
-        return $this->users;
-    }
+    public function getUsers(): Collection { return $this->users; }
 
     public function addUser(User $user): static {
         if (!$this->users->contains($user)) {

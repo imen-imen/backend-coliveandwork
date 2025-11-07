@@ -3,56 +3,95 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use App\Repository\VerificationUserRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-// Entité représentant une vérification de document liée à un proprietaire
+/*Entité : Vérification d’identité d’un propriétaire (ROLE_OWNER)
+ * - Créée automatiquement à l’inscription d’un propriétaire.
+ * - Seuls les employés et administrateurs peuvent consulter et valider/refuser.
+ * - Le statut passe de "en attente" → "validé" ou "refusé".
+ */
 #[ORM\Entity(repositoryClass: VerificationUserRepository::class)]
-#[ApiResource]
+#[ApiResource(
+    operations: [
+        // Liste complète — employee et admin uniquement
+        new GetCollection(
+            security: "is_granted('ROLE_EMPLOYEE') or is_granted('ROLE_ADMIN')",
+            securityMessage: "Seuls les employés et administrateurs peuvent voir les vérifications."
+        ),
+
+        // Détail d'une vérification — employee et admin uniquement
+        new Get(
+            security: "is_granted('ROLE_EMPLOYEE') or is_granted('ROLE_ADMIN')",
+            securityMessage: "Seuls les employés et administrateurs peuvent consulter les détails d'une vérification."
+        ),
+
+        // Validation ou refus — employee et admin uniquement
+        new Patch(
+            security: "is_granted('ROLE_EMPLOYEE') or is_granted('ROLE_ADMIN')",
+            securityMessage: "Seuls les employés et administrateurs peuvent modifier le statut d'une vérification."
+        )
+    ]
+)]
+#[ApiFilter(SearchFilter::class, properties: [
+    'status' => 'exact',             // filtrer par statut (en attente / validé / refusé)
+    'user.email' => 'iexact',        // filtrer par propriétaire
+    'documentType' => 'ipartial'     // recherche par type de document
+])]
 class VerificationUser
 {
-    // Identifiant unique auto-généré
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
-    // Type de document vérifié (ex: "CNI", "Passeport")
+    // Type de document (CNI, passeport, justificatif, etc.)
     #[ORM\Column(length: 50)]
     private ?string $documentType = null;
 
-    // URL du document stocké (ex: lien vers un fichier PDF ou image)
+    // Lien du fichier stocké (PDF ou image)
     #[ORM\Column(length: 255)]
     private ?string $documentUrl = null;
 
-    // Date de création de la vérification
+    // Date de création
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
-    // Date de validation du document (optionnelle)
+    // Date de validation (optionnelle)
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $verifiedAt = null;
 
-    // Statut de la vérification (ex: "validé", "refusé", "en attente")
+    // Statut : "en attente", "validé", "refusé"
     #[ORM\Column(length: 50)]
-    private ?string $status = null;
+    private ?string $status = 'en attente';
 
-    // Notes internes ou commentaires (optionnels)
+    // Notes internes du employee et admin
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $notes = null;
 
-    // Utilisateur qui a effectué la vérification (ex: admin ou modérateur)
+    // Employé/Admin ayant effectué la vérification
     #[ORM\ManyToOne(inversedBy: 'ownedVerifications')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?User $owner = null;
 
-    // Utilisateur concerné par la vérification
+    // Propriétaire concerné
     #[ORM\ManyToOne(inversedBy: 'userVerifications')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
 
-    // Getters / Setters générés automatiquement
+    public function __construct()
+    {
+        $this->createdAt = new \DateTimeImmutable();
+        $this->status = 'en attente';
+    }
+
+    // === Getters / Setters ===
     public function getId(): ?int { return $this->id; }
 
     public function getDocumentType(): ?string { return $this->documentType; }

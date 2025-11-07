@@ -3,16 +3,81 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use App\Repository\ReservationRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-// Entité représentant une réservation d’un espace privé
+/*Entité représentant une réservation d’un espace privé (PrivateSpace)
+ * - Le client connecté crée une réservation (statut initial = "en attente").
+ * - Le propriétaire de l’espace peut confirmer ou refuser la réservation.
+ * - L’employé ou l’administrateur peuvent exceptionnellement modifier le statut
+ *   (litige, erreur ou absence du propriétaire).
+ * - Le client ne peut ni annuler ni modifier la réservation.
+ * - Les employés et administrateurs peuvent supprimer une réservation uniquement dans des cas exceptionnels.
+ * - Le front bloque uniquement les réservations ayant le statut "confirmée".
+ */
 #[ORM\Entity(repositoryClass: ReservationRepository::class)]
-#[ApiResource]
+#[ApiResource(
+    operations: [
+        // Lister toutes les réservations (employee et admin)
+        new GetCollection(
+            security: "is_granted('ROLE_EMPLOYEE') or is_granted('ROLE_ADMIN')",
+            securityMessage: "Seuls les employés et administrateurs peuvent voir toutes les réservations."
+        ),
+
+        // Consulter une réservation : accessible à l'employee et l'admin, au client concerné, ou au propriétaire de l’espace réservé
+        new Get(
+            security: "
+                is_granted('ROLE_ADMIN')
+                or is_granted('ROLE_EMPLOYEE')
+                or object.getClient() == user
+                or object.getPrivateSpace().getColivingSpace().getOwner() == user
+            ",
+            securityMessage: "Accès restreint à la réservation (staff, client concerné ou propriétaire)."
+        ),
+
+        // Création : client connecté uniquement
+        new Post(
+            security: "is_granted('ROLE_USER')",
+            securityMessage: "Seuls les clients connectés peuvent créer une réservation."
+        ),
+
+        // Modification du statut :
+        // Autorisée au propriétaire (cas normal) ou au staff (litige, erreur, absence du propriétaire)
+        new Patch(
+            security: "
+                is_granted('ROLE_EMPLOYEE')
+                or is_granted('ROLE_ADMIN')
+                or (is_granted('ROLE_OWNER') and object.getPrivateSpace().getColivingSpace().getOwner() == user)
+            ",
+            securityMessage: "Seuls les propriétaires de l’espace ou le staff peuvent modifier le statut d’une réservation."
+        ),
+
+        // Suppression : autorisée à l’employé ou l’administrateur (cas exceptionnels)
+        new Delete(
+            security: "is_granted('ROLE_EMPLOYEE') or is_granted('ROLE_ADMIN')",
+            securityMessage: "Seuls les employés ou administrateurs peuvent supprimer une réservation (cas exceptionnels)."
+        ),
+    ]
+)]
+#[ApiFilter(SearchFilter::class, properties: [
+    'status' => 'exact',             // filtrer par statut (confirmée, refusée, en attente, etc.)
+    'client.email' => 'iexact',      // filtrer par client
+    'privateSpace.id' => 'exact'     // filtrer par espace privé
+])]
+#[ApiFilter(DateFilter::class, properties: [
+    'startDate', 'endDate'           // filtrer par période
+])]
 class Reservation
 {
-    // Identifiant unique auto-généré
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -26,27 +91,27 @@ class Reservation
     #[ORM\Column(type: Types::DATE_MUTABLE)]
     private ?\DateTime $endDate = null;
 
-    // Indique si la réservation est pour deux personnes
+    // Réservation pour deux personnes ?
     #[ORM\Column]
     private ?bool $isForTwo = null;
 
-    // Taxe de séjour appliquée
+    // Taxe de séjour
     #[ORM\Column(type: Types::DECIMAL, precision: 6, scale: 2)]
     private ?string $lodgingTax = null;
 
-    // Prix total de la réservation
-    #[ORM\Column(type: Types::DECIMAL, precision: 6, scale: 2)]
+    // Prix total
+    #[ORM\Column(type: Types::DECIMAL, precision: 7, scale: 2)]
     private ?string $totalPrice = null;
 
-    // Statut de la réservation (ex: "confirmée", "annulée")
+    // Statut de la réservation (en attente, confirmée, refusée, annulée, terminée)
     #[ORM\Column(length: 50)]
-    private ?string $status = null;
+    private ?string $status = 'en attente';
 
-    // Date de création de la réservation
+    // Date de création
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
-    // Avis associé à cette réservation (relation 1:1)
+    // Avis associé à la réservation
     #[ORM\OneToOne(mappedBy: 'reservation', cascade: ['persist', 'remove'])]
     private ?Review $review = null;
 
@@ -55,12 +120,18 @@ class Reservation
     #[ORM\JoinColumn(nullable: false)]
     private ?PrivateSpace $privateSpace = null;
 
-    // Utilisateur ayant effectué la réservation
+    // Client qui a effectué la réservation
     #[ORM\ManyToOne(inversedBy: 'reservations')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $client = null;
 
-    // Getters / Setters générés automatiquement
+    public function __construct()
+    {
+        $this->createdAt = new \DateTimeImmutable();
+        $this->status = 'en attente';
+    }
+
+    // === Getters / Setters ===
     public function getId(): ?int { return $this->id; }
 
     public function getStartDate(): ?\DateTime { return $this->startDate; }
@@ -107,7 +178,6 @@ class Reservation
 
     public function getReview(): ?Review { return $this->review; }
     public function setReview(Review $review): static {
-        // Synchronisation bidirectionnelle
         if ($review->getReservation() !== $this) {
             $review->setReservation($this);
         }

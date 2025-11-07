@@ -92,7 +92,18 @@ class AppFixtures extends Fixture
             $this->addReference("employee_$i", $employee);
         }
 
-        // 10 propriétaires
+        // --- Compte PROPRIÉTAIRE fixe pour les tests ---
+        $ownerTest = new User();
+        $ownerTest->setEmail('owner@coliveandwork.fr')
+            ->setFirstname('Paul')
+            ->setLastname('Proprio')
+            ->setRoles(['ROLE_OWNER'])
+            ->setAddress($this->getReference('address_' . rand(1, 40), Address::class))
+            ->setPassword($this->passwordHasher->hashPassword($ownerTest, 'Owner123!'));
+        $manager->persist($ownerTest);
+        $this->addReference('owner_test', $ownerTest);
+
+        // 10 propriétaires faker 
         for ($i = 1; $i <= 10; $i++) {
             $owner = new User();
             $owner->setEmail($faker->unique()->safeEmail)
@@ -104,8 +115,18 @@ class AppFixtures extends Fixture
             $manager->persist($owner);
             $this->addReference("owner_$i", $owner);
         }
+        // --- Compte CLIENT fixe pour les tests ---
+        $clientTest = new User();
+        $clientTest->setEmail('client@coliveandwork.fr')
+            ->setFirstname('Clara')
+            ->setLastname('Client')
+            ->setRoles(['ROLE_USER'])
+            ->setAddress($this->getReference('address_' . rand(1, 40), Address::class))
+            ->setPassword($this->passwordHasher->hashPassword($clientTest, 'Client123!'));
+        $manager->persist($clientTest);
+        $this->addReference('client_test', $clientTest);
 
-        // 25 clients
+        // 25 clients faker
         for ($i = 1; $i <= 25; $i++) {
             $client = new User();
             $client->setEmail($faker->unique()->safeEmail)

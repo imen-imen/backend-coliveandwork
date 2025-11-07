@@ -11,6 +11,13 @@ security:
                 class: App\Entity\User
                 property: email
 
+    # --- Hiérarchie des rôles ---
+    role_hierarchy:
+        ROLE_ADMIN: [ROLE_EMPLOYEE, ROLE_OWNER, ROLE_CLIENT, ROLE_USER]
+        ROLE_EMPLOYEE: [ROLE_OWNER, ROLE_CLIENT, ROLE_USER]
+        ROLE_OWNER: [ROLE_CLIENT, ROLE_USER]
+        ROLE_CLIENT: [ROLE_USER]                
+
     firewalls:
         # Exclut les routes internes de Symfony (debug, assets…)
         dev:
@@ -22,6 +29,7 @@ security:
             pattern: ^/api
             stateless: true     # Pas de session, tout passe par le token
             entry_point: jwt
+            provider: app_user_provider     # nécessaire pour identifier l’utilisateur
 
             # Connexion : envoie email + password à /api/login_check
             json_login:
@@ -38,16 +46,25 @@ security:
             refresh_jwt:
                 check_path: /api/token/refresh
 
-        # Firewall principal Symfony (non utilisé ici mais requis)
+        # Firewall principal Symfony 
         main:
             lazy: true
             provider: app_user_provider
 
     # Autorise les routes publiques et protège le reste
     access_control:
-        - { path: ^/api/(login|token/refresh), roles: PUBLIC_ACCESS }
-        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/api/login_check, roles: PUBLIC_ACCESS }
+        - { path: ^/api/token/refresh, roles: PUBLIC_ACCESS }
+        - { path: ^/api/docs, roles: PUBLIC_ACCESS }
 
+        # accès par rôle 
+        - { path: ^/api/admin, roles: ROLE_ADMIN }
+        - { path: ^/api/employee, roles: ROLE_EMPLOYEE }
+        - { path: ^/api/owner, roles: ROLE_OWNER }
+        - { path: ^/api/client, roles: ROLE_CLIENT }
+        - { path: ^/api, roles: ROLE_USER }
+
+# Configuration pour les tests unitaires
 when@test:
     security:
         password_hashers:
