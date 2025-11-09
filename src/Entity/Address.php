@@ -14,30 +14,24 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Entité : Address (Adresse)
- * Utilisée par : User + ColivingSpace
- * Lecture publique uniquement
- * Sert à afficher les localisations et filtrer les espaces
+ * Entité : Address
+ * Utilisée par les entités User et ColivingSpace pour stocker les informations d’adresse.
+ * Accessible en lecture publique via l’API.
  */
 #[ORM\Entity(repositoryClass: AddressRepository::class)]
 #[ORM\Table(name: 'address')]
 #[ApiResource(
     operations: [
-        // Lecture publique — tout le monde peut consulter les adresses
-        new GetCollection(
-            security: "is_granted('PUBLIC_ACCESS')"
-        ),
-        new Get(
-            security: "is_granted('PUBLIC_ACCESS')"
-        ),
+        new GetCollection(security: "is_granted('PUBLIC_ACCESS')"),
+        new Get(security: "is_granted('PUBLIC_ACCESS')")
     ]
 )]
 #[ApiFilter(SearchFilter::class, properties: [
-    'streetName' => 'ipartial',   // recherche partielle sur le nom de rue
-    'postalCode' => 'iexact',     // correspondance exacte du code postal
-    'otherCityName' => 'ipartial', // nom de la ville (autre)
-    'regionName' => 'ipartial',   // recherche partielle sur la région
-    'countryName' => 'ipartial'   // recherche partielle sur le pays
+    'streetName' => 'ipartial',
+    'postalCode' => 'iexact',
+    'otherCityName' => 'ipartial',
+    'regionName' => 'ipartial',
+    'countryName' => 'ipartial'
 ])]
 class Address
 {
@@ -46,35 +40,43 @@ class Address
     #[ORM\Column]
     private ?int $id = null;
 
+    /** Numéro de rue */
     #[ORM\Column(length: 10, nullable: true)]
     private ?string $streetNumber = null;
 
+    /** Nom de la rue */
     #[ORM\Column(length: 100)]
     private ?string $streetName = null;
 
+    /** Code postal */
     #[ORM\Column(length: 20)]
     private ?string $postalCode = null;
 
+    /** Ville (autre, libre) */
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $otherCityName = null;
 
+    /** Région */
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $regionName = null;
 
+    /** Pays */
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $countryName = null;
 
+    /** Longitude (coordonnée géographique) */
     #[ORM\Column(type: Types::DECIMAL, precision: 9, scale: 6, nullable: true)]
     private ?string $longitude = null;
 
+    /** Latitude (coordonnée géographique) */
     #[ORM\Column(type: Types::DECIMAL, precision: 9, scale: 6, nullable: true)]
     private ?string $latitude = null;
 
-    // Espaces coliving associés à cette adresse
+    /** Espaces coliving associés à cette adresse */
     #[ORM\OneToMany(targetEntity: ColivingSpace::class, mappedBy: 'address')]
     private Collection $colivingSpaces;
 
-    // Utilisateurs associés à cette adresse
+    /** Utilisateurs associés à cette adresse */
     #[ORM\OneToMany(targetEntity: User::class, mappedBy: 'address')]
     private Collection $users;
 
@@ -84,7 +86,7 @@ class Address
         $this->users = new ArrayCollection();
     }
 
-    // === Getters / Setters ===
+    // --- Getters / Setters ---
     public function getId(): ?int { return $this->id; }
 
     public function getStreetNumber(): ?string { return $this->streetNumber; }

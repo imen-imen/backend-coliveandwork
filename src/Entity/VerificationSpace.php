@@ -13,33 +13,27 @@ use App\Repository\VerificationSpaceRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-/*Entité : Vérification d’un espace coliving ou d'un espace privé
+/**
+ * Entité : Vérification d’un espace coliving ou d’un espace privé.
  * - Créée par un employé ou un administrateur après la création d’un espace.
- * - Le propriétaire n’y a pas accès (il voit juste l’état de son espace).
+ * - Le propriétaire n’y a pas accès directement (il ne voit que le statut final).
  * - L’employé ou l’admin peuvent valider, refuser, ou ajouter des notes.
  */
 #[ORM\Entity(repositoryClass: VerificationSpaceRepository::class)]
 #[ApiResource(
     operations: [
-        // Liste complète des vérifications — staff uniquement
         new GetCollection(
             security: "is_granted('ROLE_EMPLOYEE') or is_granted('ROLE_ADMIN')",
             securityMessage: "Seuls les employés et administrateurs peuvent consulter les vérifications."
         ),
-
-        // Détail d'une vérification — staff uniquement
         new Get(
             security: "is_granted('ROLE_EMPLOYEE') or is_granted('ROLE_ADMIN')",
             securityMessage: "Accès réservé aux employés et administrateurs."
         ),
-
-        // Création — staff uniquement
         new Post(
             security: "is_granted('ROLE_EMPLOYEE') or is_granted('ROLE_ADMIN')",
             securityMessage: "Seuls les employés ou administrateurs peuvent créer une vérification d’espace."
         ),
-
-        // Modification (valider / refuser / noter) — staff uniquement
         new Patch(
             security: "is_granted('ROLE_EMPLOYEE') or is_granted('ROLE_ADMIN')",
             securityMessage: "Seuls les employés ou administrateurs peuvent modifier une vérification."
@@ -47,10 +41,10 @@ use Doctrine\ORM\Mapping as ORM;
     ]
 )]
 #[ApiFilter(SearchFilter::class, properties: [
-    'status' => 'exact',                 // filtrer par statut
-    'colivingSpace.id' => 'exact',       // filtrer par coliving
-    'privateSpace.id' => 'exact',        // filtrer par espace privé
-    'user.email' => 'iexact'             // filtrer par vérificateur
+    'status' => 'exact',
+    'colivingSpace.id' => 'exact',
+    'privateSpace.id' => 'exact',
+    'user.email' => 'iexact'
 ])]
 class VerificationSpace
 {
@@ -59,28 +53,32 @@ class VerificationSpace
     #[ORM\Column]
     private ?int $id = null;
 
-    // Date de vérification
-    #[ORM\Column(nullable: true)]
+    /** Date de création de la vérification */
+    #[ORM\Column(options: ['default' => 'CURRENT_TIMESTAMP'])]
+    private ?\DateTimeImmutable $createdAt = null;
+
+    /** Date à laquelle l’espace a été validé ou refusé */
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $verifiedAt = null;
 
-    // Statut : "en attente", "validé", "refusé"
-    #[ORM\Column(length: 50)]
-    private ?string $status = 'en attente';
+    /** Statut actuel : "en attente", "validé", "refusé" */
+    #[ORM\Column(length: 50, options: ['default' => 'en attente'])]
+    private string $status = 'en attente';
 
-    // Notes internes ou commentaires
+    /** Notes internes laissées par l’employé ou l’administrateur */
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $notes = null;
 
-    // Espace coliving concerné
+    /** Espace coliving concerné par la vérification */
     #[ORM\ManyToOne(inversedBy: 'verificationSpaces')]
     #[ORM\JoinColumn(nullable: false)]
     private ?ColivingSpace $colivingSpace = null;
 
-    // Espace privé concerné (facultatif)
+    /** Espace privé concerné (facultatif) */
     #[ORM\ManyToOne(inversedBy: 'verificationSpaces')]
     private ?PrivateSpace $privateSpace = null;
 
-    // Employé/Admin ayant réalisé la vérification
+    /** Employé ou administrateur ayant réalisé la vérification */
     #[ORM\ManyToOne(inversedBy: 'userVerificationSpaces')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
@@ -88,11 +86,17 @@ class VerificationSpace
     public function __construct()
     {
         $this->status = 'en attente';
-        $this->verifiedAt = new \DateTimeImmutable();
+        $this->createdAt = new \DateTimeImmutable();
     }
 
-    // === Getters / Setters ===
+    // --- Getters / Setters ---
     public function getId(): ?int { return $this->id; }
+
+    public function getCreatedAt(): ?\DateTimeImmutable { return $this->createdAt; }
+    public function setCreatedAt(\DateTimeImmutable $createdAt): static {
+        $this->createdAt = $createdAt;
+        return $this;
+    }
 
     public function getVerifiedAt(): ?\DateTimeImmutable { return $this->verifiedAt; }
     public function setVerifiedAt(?\DateTimeImmutable $verifiedAt): static {
