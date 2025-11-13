@@ -9,34 +9,37 @@ use App\Repository\AmenityRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Symfony\Component\Serializer\Annotation\Groups;
 
-/**
- * Entité représentant un équipement ou un service (lié aux espaces de coliving)
- */
 #[ORM\Entity(repositoryClass: AmenityRepository::class)]
 #[ORM\Table(name: 'amenity')]
-#[ApiResource]
+#[ApiResource(
+    normalizationContext: ['groups' => ['amenity:read']],
+    denormalizationContext: ['groups' => ['amenity:write']]
+)]
 #[ApiFilter(SearchFilter::class, properties: [
     'name' => 'ipartial',
     'amenityType' => 'exact'
 ])]
 class Amenity
 {
+    #[Groups(['amenity:read'])]
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
+    #[Groups(['amenity:read', 'amenity:write'])]
     #[ORM\Column(length: 100)]
     private ?string $name = null;
 
+    #[Groups(['amenity:read', 'amenity:write'])]
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description = null;
 
+    #[Groups(['amenity:read', 'amenity:write'])]
     #[ORM\Column(length: 50)]
     private ?string $amenityType = null;
-
-    // === Relations ===
 
     #[ORM\ManyToMany(targetEntity: ColivingSpace::class, mappedBy: 'amenities')]
     private Collection $colivingSpaces;
@@ -50,8 +53,7 @@ class Amenity
         $this->privateSpaces = new ArrayCollection();
     }
 
-    // === Getters & Setters ===
-
+    // --- getters/setters ---
     public function getId(): ?int { return $this->id; }
 
     public function getName(): ?string { return $this->name; }
@@ -62,44 +64,4 @@ class Amenity
 
     public function getAmenityType(): ?string { return $this->amenityType; }
     public function setAmenityType(string $amenityType): static { $this->amenityType = $amenityType; return $this; }
-
-    /** @return Collection<int, ColivingSpace> */
-    public function getColivingSpaces(): Collection { return $this->colivingSpaces; }
-
-    public function addColivingSpace(ColivingSpace $colivingSpace): static
-    {
-        if (!$this->colivingSpaces->contains($colivingSpace)) {
-            $this->colivingSpaces->add($colivingSpace);
-            $colivingSpace->addAmenity($this);
-        }
-        return $this;
-    }
-
-    public function removeColivingSpace(ColivingSpace $colivingSpace): static
-    {
-        if ($this->colivingSpaces->removeElement($colivingSpace)) {
-            $colivingSpace->removeAmenity($this);
-        }
-        return $this;
-    }
-
-    /** @return Collection<int, PrivateSpace> */
-    public function getPrivateSpaces(): Collection { return $this->privateSpaces; }
-
-    public function addPrivateSpace(PrivateSpace $privateSpace): static
-    {
-        if (!$this->privateSpaces->contains($privateSpace)) {
-            $this->privateSpaces->add($privateSpace);
-            $privateSpace->addAmenity($this);
-        }
-        return $this;
-    }
-
-    public function removePrivateSpace(PrivateSpace $privateSpace): static
-    {
-        if ($this->privateSpaces->removeElement($privateSpace)) {
-            $privateSpace->removeAmenity($this);
-        }
-        return $this;
-    }
 }

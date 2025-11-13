@@ -17,59 +17,55 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-// Import des contrôleurs personnalisés
+// Controllers
 use App\Controller\PublishPrivateSpaceController;
 use App\Controller\SuspendPrivateSpaceController;
 
-/*Espace privé d’un espace coliving */
+// Serializer
+use Symfony\Component\Serializer\Annotation\Groups;
+
+/**
+ * Espace privé
+ */
 #[ORM\Entity(repositoryClass: PrivateSpaceRepository::class)]
 #[ORM\Table(name: 'private_space')]
 #[ApiResource(
+    normalizationContext: ['groups' => ['private:read']],
+    denormalizationContext: ['groups' => ['private:write']],
     operations: [
-        // Lecture publique
         new GetCollection(security: "is_granted('PUBLIC_ACCESS')"),
         new Get(security: "is_granted('PUBLIC_ACCESS')"),
 
-        // Création : propriétaire uniquement
         new Post(
             security: "is_granted('ROLE_OWNER')",
             securityMessage: "Seuls les propriétaires peuvent créer un espace privé."
         ),
 
-        // Modification : propriétaire seulement si non publié
         new Put(
-            security: "is_granted('ROLE_OWNER') and object.getColivingSpace().getOwner() == user and object.getIsActive() == false",
-            securityMessage: "Vous pouvez modifier uniquement vos espaces privés non publiés de vos propres colivings."
+            security: "is_granted('ROLE_OWNER') and object.getColivingSpace().getOwner() == user and object.getIsActive() == false"
         ),
         new Patch(
-            security: "is_granted('ROLE_OWNER') and object.getColivingSpace().getOwner() == user and object.getIsActive() == false",
-            securityMessage: "Vous pouvez modifier uniquement vos espaces privés non publiés de vos propres colivings."
+            security: "is_granted('ROLE_OWNER') and object.getColivingSpace().getOwner() == user and object.getIsActive() == false"
         ),
 
-        // Publication (employé/admin)
         new Patch(
             uriTemplate: '/private_spaces/{id}/publish',
             security: "is_granted('ROLE_EMPLOYEE') or is_granted('ROLE_ADMIN')",
-            securityMessage: "Seuls les employés ou administrateurs peuvent publier un espace privé.",
             input: false,
             output: false,
             controller: PublishPrivateSpaceController::class
         ),
 
-        // Suspension (employé/admin)
         new Patch(
             uriTemplate: '/private_spaces/{id}/suspend',
             security: "is_granted('ROLE_EMPLOYEE') or is_granted('ROLE_ADMIN')",
-            securityMessage: "Seuls les employés ou administrateurs peuvent suspendre un espace privé.",
             input: false,
             output: false,
             controller: SuspendPrivateSpaceController::class
         ),
 
-        // Suppression : admin uniquement
         new Delete(
-            security: "is_granted('ROLE_ADMIN')",
-            securityMessage: "Seuls les administrateurs peuvent supprimer un espace privé."
+            security: "is_granted('ROLE_ADMIN')"
         ),
     ]
 )]
@@ -81,35 +77,44 @@ use App\Controller\SuspendPrivateSpaceController;
 ])]
 class PrivateSpace
 {
+    #[Groups(['private:read'])]
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
+    #[Groups(['private:read', 'private:write'])]
     #[ORM\Column(length: 50)]
     private ?string $titlePrivateSpace = null;
 
+    #[Groups(['private:read', 'private:write'])]
     #[ORM\Column(type: Types::TEXT)]
     private ?string $descriptionPrivateSpace = null;
 
+    #[Groups(['private:read', 'private:write'])]
     #[ORM\Column]
     private ?int $capacity = null;
 
+    #[Groups(['private:read', 'private:write'])]
     #[ORM\Column(type: Types::DECIMAL, precision: 6, scale: 2)]
     private ?string $areaM2 = null;
 
+    #[Groups(['private:read', 'private:write'])]
     #[ORM\Column(type: Types::DECIMAL, precision: 7, scale: 2)]
     private ?string $pricePerMonth = null;
 
+    #[Groups(['private:read'])]
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
+    #[Groups(['private:read', 'private:write'])]
     #[ORM\Column(options: ['default' => false])]
     private ?bool $isActive = false;
 
+    #[Groups(['private:read', 'private:write'])]
     #[ORM\ManyToOne(inversedBy: 'privateSpaces')]
     #[ORM\JoinColumn(nullable: false)]
     private ?ColivingSpace $colivingSpace = null;
@@ -135,7 +140,7 @@ class PrivateSpace
         $this->createdAt = new \DateTimeImmutable();
     }
 
-    // === Getters & Setters ===
+    // --- GETTERS SETTERS ---
 
     public function getId(): ?int { return $this->id; }
 
@@ -152,10 +157,9 @@ class PrivateSpace
     public function setAreaM2(string $areaM2): static { $this->areaM2 = $areaM2; return $this; }
 
     public function getPricePerMonth(): ?string { return $this->pricePerMonth; }
-    public function setPricePerMonth(string $pricePerMonth): static { $this->pricePerMonth = $pricePerMonth; return $this; }
+    public function setPricePerMonth(string $price): static { $this->pricePerMonth = $price; return $this; }
 
     public function getCreatedAt(): ?\DateTimeImmutable { return $this->createdAt; }
-    public function setCreatedAt(\DateTimeImmutable $createdAt): static { $this->createdAt = $createdAt; return $this; }
 
     public function getUpdatedAt(): ?\DateTimeImmutable { return $this->updatedAt; }
     public function setUpdatedAt(?\DateTimeImmutable $updatedAt): static { $this->updatedAt = $updatedAt; return $this; }
@@ -164,34 +168,5 @@ class PrivateSpace
     public function setIsActive(bool $isActive): static { $this->isActive = $isActive; return $this; }
 
     public function getColivingSpace(): ?ColivingSpace { return $this->colivingSpace; }
-    public function setColivingSpace(?ColivingSpace $colivingSpace): static { $this->colivingSpace = $colivingSpace; return $this; }
-
-    /** @return Collection<int, Reservation> */
-    public function getReservations(): Collection { return $this->reservations; }
-
-    /** @return Collection<int, Photo> */
-    public function getPhotos(): Collection { return $this->photos; }
-
-    /** @return Collection<int, VerificationSpace> */
-    public function getVerificationSpaces(): Collection { return $this->verificationSpaces; }
-
-    /** @return Collection<int, Amenity> */
-    public function getAmenities(): Collection { return $this->amenities; }
-
-    public function addAmenity(Amenity $amenity): static
-    {
-        if (!$this->amenities->contains($amenity)) {
-            $this->amenities->add($amenity);
-            $amenity->addPrivateSpace($this);
-        }
-        return $this;
-    }
-
-    public function removeAmenity(Amenity $amenity): static
-    {
-        if ($this->amenities->removeElement($amenity)) {
-            $amenity->removePrivateSpace($this);
-        }
-        return $this;
-    }
+    public function setColivingSpace(?ColivingSpace $space): static { $this->colivingSpace = $space; return $this; }
 }

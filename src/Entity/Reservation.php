@@ -24,14 +24,16 @@ use Doctrine\ORM\Mapping as ORM;
  * - Les employés et administrateurs peuvent supprimer une réservation uniquement dans des cas exceptionnels.
  * - Le front bloque uniquement les réservations ayant le statut "confirmée".
  */
+
 #[ORM\Entity(repositoryClass: ReservationRepository::class)]
 #[ApiResource(
     operations: [
         // Lister toutes les réservations (employee et admin)
         new GetCollection(
-            security: "is_granted('ROLE_EMPLOYEE') or is_granted('ROLE_ADMIN')",
-            securityMessage: "Seuls les employés et administrateurs peuvent voir toutes les réservations."
+            security: "is_granted('ROLE_ADMIN') or is_granted('ROLE_EMPLOYEE') or is_granted('ROLE_OWNER')",
+            securityMessage: "Seuls les employés, administrateurs et propriétaires peuvent voir des réservations."
         ),
+
 
         // Consulter une réservation : accessible à l'employee et l'admin, au client concerné, ou au propriétaire de l’espace réservé
         new Get(
@@ -74,7 +76,8 @@ use Doctrine\ORM\Mapping as ORM;
     'privateSpace.id' => 'exact'     // filtrer par espace privé
 ])]
 #[ApiFilter(DateFilter::class, properties: [
-    'startDate', 'endDate'           // filtrer par période
+    'startDate',
+    'endDate'           // filtrer par période
 ])]
 class Reservation
 {
@@ -132,52 +135,87 @@ class Reservation
     }
 
     // === Getters / Setters ===
-    public function getId(): ?int { return $this->id; }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
 
-    public function getStartDate(): ?\DateTime { return $this->startDate; }
-    public function setStartDate(\DateTime $startDate): static {
+    public function getStartDate(): ?\DateTime
+    {
+        return $this->startDate;
+    }
+    public function setStartDate(\DateTime $startDate): static
+    {
         $this->startDate = $startDate;
         return $this;
     }
 
-    public function getEndDate(): ?\DateTime { return $this->endDate; }
-    public function setEndDate(\DateTime $endDate): static {
+    public function getEndDate(): ?\DateTime
+    {
+        return $this->endDate;
+    }
+    public function setEndDate(\DateTime $endDate): static
+    {
         $this->endDate = $endDate;
         return $this;
     }
 
-    public function isForTwo(): ?bool { return $this->isForTwo; }
-    public function setIsForTwo(bool $isForTwo): static {
+    public function isForTwo(): ?bool
+    {
+        return $this->isForTwo;
+    }
+    public function setIsForTwo(bool $isForTwo): static
+    {
         $this->isForTwo = $isForTwo;
         return $this;
     }
 
-    public function getLodgingTax(): ?string { return $this->lodgingTax; }
-    public function setLodgingTax(string $lodgingTax): static {
+    public function getLodgingTax(): ?string
+    {
+        return $this->lodgingTax;
+    }
+    public function setLodgingTax(string $lodgingTax): static
+    {
         $this->lodgingTax = $lodgingTax;
         return $this;
     }
 
-    public function getTotalPrice(): ?string { return $this->totalPrice; }
-    public function setTotalPrice(string $totalPrice): static {
+    public function getTotalPrice(): ?string
+    {
+        return $this->totalPrice;
+    }
+    public function setTotalPrice(string $totalPrice): static
+    {
         $this->totalPrice = $totalPrice;
         return $this;
     }
 
-    public function getStatus(): ?string { return $this->status; }
-    public function setStatus(string $status): static {
+    public function getStatus(): ?string
+    {
+        return $this->status;
+    }
+    public function setStatus(string $status): static
+    {
         $this->status = $status;
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTimeImmutable { return $this->createdAt; }
-    public function setCreatedAt(\DateTimeImmutable $createdAt): static {
+    public function getCreatedAt(): ?\DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+    public function setCreatedAt(\DateTimeImmutable $createdAt): static
+    {
         $this->createdAt = $createdAt;
         return $this;
     }
 
-    public function getReview(): ?Review { return $this->review; }
-    public function setReview(Review $review): static {
+    public function getReview(): ?Review
+    {
+        return $this->review;
+    }
+    public function setReview(Review $review): static
+    {
         if ($review->getReservation() !== $this) {
             $review->setReservation($this);
         }
@@ -185,14 +223,22 @@ class Reservation
         return $this;
     }
 
-    public function getPrivateSpace(): ?PrivateSpace { return $this->privateSpace; }
-    public function setPrivateSpace(?PrivateSpace $privateSpace): static {
+    public function getPrivateSpace(): ?PrivateSpace
+    {
+        return $this->privateSpace;
+    }
+    public function setPrivateSpace(?PrivateSpace $privateSpace): static
+    {
         $this->privateSpace = $privateSpace;
         return $this;
     }
 
-    public function getClient(): ?User { return $this->client; }
-    public function setClient(?User $client): static {
+    public function getClient(): ?User
+    {
+        return $this->client;
+    }
+    public function setClient(?User $client): static
+    {
         $this->client = $client;
         return $this;
     }
