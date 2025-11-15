@@ -20,7 +20,7 @@ security:
         # Firewall principal pour toutes les routes /api
         api:
             pattern: ^/api
-            stateless: true     # Pas de session, tout passe par le token
+            stateless: true # Pas de session, tout passe par le token
             entry_point: jwt
 
             # Connexion : envoie email + password à /api/login_check
@@ -28,7 +28,7 @@ security:
                 check_path: /api/login_check
                 username_path: email
                 password_path: password
-                success_handler: lexik_jwt_authentication.handler.authentication_success                
+                success_handler: lexik_jwt_authentication.handler.authentication_success
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
 
             # Vérifie le JWT sur les routes protégées
@@ -44,8 +44,20 @@ security:
             provider: app_user_provider
 
     # Autorise les routes publiques et protège le reste
+
     access_control:
-        - { path: ^/api/(login|token/refresh), roles: PUBLIC_ACCESS }
+        # AUTH PUBLIQUE
+        - { path: ^/api/login, roles: PUBLIC_ACCESS }
+        - { path: ^/api/token/refresh, roles: PUBLIC_ACCESS }
+
+        # ENDPOINTS PUBLICS (pour le FRONT ANGULAR)
+        - { path: ^/api/private_spaces, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/coliving_spaces, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/coliving_cities, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/photos, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/amenities, roles: PUBLIC_ACCESS, methods: [GET] }
+
+        # LE RESTE DE L’API EST PROTÉGÉ (JWT obligatoire)
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
 when@test:

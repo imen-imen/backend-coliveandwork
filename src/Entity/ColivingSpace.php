@@ -2,102 +2,93 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use Symfony\Component\Serializer\Annotation\Groups;
 use App\Repository\ColivingSpaceRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-// Déclaration de l'entité Doctrine liée à la table 'coliving_space'
+#[ApiResource(
+    operations: [
+        new GetCollection(security: "is_granted('PUBLIC_ACCESS')"),
+        new Get(security: "is_granted('PUBLIC_ACCESS')"),
+    ],
+    normalizationContext: ['groups' => ['coliving:read']],
+)]
 #[ORM\Entity(repositoryClass: ColivingSpaceRepository::class)]
 #[ORM\Table(name: 'coliving_space')]
 class ColivingSpace
 {
-    // Identifiant unique auto-généré
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['coliving:read', 'private:read'])]
     private ?int $id = null;
 
-    // Titre du coliving 
     #[ORM\Column(length: 100)]
+    #[Groups(['coliving:read', 'private:read'])]
     private ?string $titleColivingSpace = null;
 
-    // Description complète du coliving
     #[ORM\Column(type: Types::TEXT)]
+    #[Groups(['coliving:read'])]
     private ?string $descriptionColivingSpace = null;
 
-    // Type de logement 
     #[ORM\Column(length: 50)]
+    #[Groups(['coliving:read'])]
     private ?string $housingType = null;
 
-    // Nombre total de pièces
     #[ORM\Column]
+    #[Groups(['coliving:read'])]
     private ?int $roomCount = null;
 
-    // Surface totale en m²
     #[ORM\Column(type: Types::DECIMAL, precision: 6, scale: 2)]
+    #[Groups(['coliving:read'])]
     private ?string $totalAreaM2 = null;
 
-    // Capacité maximale en nombre de personnes
     #[ORM\Column]
+    #[Groups(['coliving:read'])]
     private ?int $capacityMax = null;
 
-    // Date de création de l'enregistrement
     #[ORM\Column]
+    #[Groups(['coliving:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
-    // Date de mise à jour (optionnelle)
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
-    // Statut actif ou non (true par défaut)
     #[ORM\Column(options: ['default' => true])]
+    #[Groups(['coliving:read'])]
     private ?bool $isActive = true;
 
-    // Liste des espaces privés liés à ce coliving (relation OneToMany)
     #[ORM\OneToMany(targetEntity: PrivateSpace::class, mappedBy: 'colivingSpace')]
     private Collection $privateSpaces;
 
-    // Adresse associée au coliving (relation ManyToOne)
     #[ORM\ManyToOne(inversedBy: 'colivingSpaces')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Address $address = null;
 
-    // Propriétaire du coliving (relation ManyToOne)
     #[ORM\ManyToOne(inversedBy: 'colivingSpaces')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $owner = null;
 
-    // Photos liées au coliving (relation OneToMany)
     #[ORM\OneToMany(targetEntity: Photo::class, mappedBy: 'colivingSpace', orphanRemoval: true)]
     private Collection $photos;
 
-    // Vérifications liées au coliving (relation OneToMany)
     #[ORM\OneToMany(targetEntity: VerificationSpace::class, mappedBy: 'colivingSpace', orphanRemoval: true)]
     private Collection $verificationSpaces;
 
-    // Commodités associées à ce coliving (relation ManyToMany inversée)
     #[ORM\ManyToMany(targetEntity: Amenity::class, mappedBy: 'colivingSpaces')]
     private Collection $amenities;
-    // Ville de coliving associée
+
     #[ORM\ManyToOne(targetEntity: ColivingCity::class)]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['coliving:read'])]
     private ?ColivingCity $colivingCity = null;
 
-    public function getColivingCity(): ?ColivingCity
-    {
-        return $this->colivingCity;
-    }
-
-    public function setColivingCity(?ColivingCity $colivingCity): static
-    {
-        $this->colivingCity = $colivingCity;
-        return $this;
-    }
-
-
-    // Constructeur : initialise toutes les collections
     public function __construct()
     {
         $this->privateSpaces = new ArrayCollection();
@@ -106,7 +97,9 @@ class ColivingSpace
         $this->amenities = new ArrayCollection();
     }
 
-    // Getters et setters pour chaque propriété
+    /* ─────────────────────────────────────────────
+     * GETTERS & SETTERS COMPLETS
+     * ───────────────────────────────────────────── */
 
     public function getId(): ?int
     {
@@ -117,6 +110,7 @@ class ColivingSpace
     {
         return $this->titleColivingSpace;
     }
+
     public function setTitleColivingSpace(string $title): static
     {
         $this->titleColivingSpace = $title;
@@ -127,6 +121,7 @@ class ColivingSpace
     {
         return $this->descriptionColivingSpace;
     }
+
     public function setDescriptionColivingSpace(string $description): static
     {
         $this->descriptionColivingSpace = $description;
@@ -137,6 +132,7 @@ class ColivingSpace
     {
         return $this->housingType;
     }
+
     public function setHousingType(string $type): static
     {
         $this->housingType = $type;
@@ -147,6 +143,7 @@ class ColivingSpace
     {
         return $this->roomCount;
     }
+
     public function setRoomCount(int $count): static
     {
         $this->roomCount = $count;
@@ -157,6 +154,7 @@ class ColivingSpace
     {
         return $this->totalAreaM2;
     }
+
     public function setTotalAreaM2(string $area): static
     {
         $this->totalAreaM2 = $area;
@@ -167,6 +165,7 @@ class ColivingSpace
     {
         return $this->capacityMax;
     }
+
     public function setCapacityMax(int $capacity): static
     {
         $this->capacityMax = $capacity;
@@ -177,6 +176,7 @@ class ColivingSpace
     {
         return $this->createdAt;
     }
+
     public function setCreatedAt(\DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
@@ -187,6 +187,7 @@ class ColivingSpace
     {
         return $this->updatedAt;
     }
+
     public function setUpdatedAt(?\DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
@@ -197,6 +198,7 @@ class ColivingSpace
     {
         return $this->isActive;
     }
+
     public function setIsActive(bool $isActive): static
     {
         $this->isActive = $isActive;
@@ -207,6 +209,7 @@ class ColivingSpace
     {
         return $this->address;
     }
+
     public function setAddress(?Address $address): static
     {
         $this->address = $address;
@@ -217,52 +220,58 @@ class ColivingSpace
     {
         return $this->owner;
     }
+
     public function setOwner(?User $owner): static
     {
         $this->owner = $owner;
         return $this;
     }
 
-    /** Retourne les espaces privés liés à ce coliving */
     public function getPrivateSpaces(): Collection
     {
         return $this->privateSpaces;
     }
 
-    /** Retourne les photos liées à ce coliving */
     public function getPhotos(): Collection
     {
         return $this->photos;
     }
 
-    /** Retourne les vérifications liées à ce coliving */
     public function getVerificationSpaces(): Collection
     {
         return $this->verificationSpaces;
     }
 
-    /** Retourne les commodités liées à ce coliving */
     public function getAmenities(): Collection
     {
         return $this->amenities;
     }
 
-    /** Ajoute une commodité à ce coliving et synchronise l’autre côté de la relation */
     public function addAmenity(Amenity $amenity): static
     {
         if (!$this->amenities->contains($amenity)) {
             $this->amenities->add($amenity);
-            $amenity->addColivingSpace($this); // synchronisation bidirectionnelle
+            $amenity->addColivingSpace($this);
         }
         return $this;
     }
 
-    /** Retire une commodité de ce coliving et synchronise l’autre côté de la relation */
     public function removeAmenity(Amenity $amenity): static
     {
         if ($this->amenities->removeElement($amenity)) {
-            $amenity->removeColivingSpace($this); // synchronisation bidirectionnelle
+            $amenity->removeColivingSpace($this);
         }
+        return $this;
+    }
+
+    public function getColivingCity(): ?ColivingCity
+    {
+        return $this->colivingCity;
+    }
+
+    public function setColivingCity(?ColivingCity $colivingCity): static
+    {
+        $this->colivingCity = $colivingCity;
         return $this;
     }
 }

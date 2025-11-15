@@ -3,46 +3,64 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use Symfony\Component\Serializer\Annotation\Groups;
 use App\Repository\PrivateSpaceRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-// Entité représentant un espace privé dans un coliving
 #[ORM\Entity(repositoryClass: PrivateSpaceRepository::class)]
-#[ApiResource]
+#[ApiResource(
+    operations: [
+        new GetCollection(security: "is_granted('PUBLIC_ACCESS')"),
+        new Get(security: "is_granted('PUBLIC_ACCESS')")
+    ],
+    normalizationContext: ['groups' => ['private:read', 'coliving:read']],
+    denormalizationContext: ['groups' => ['private:write']]
+)]
 class PrivateSpace
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['private:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 50)]
+    #[Groups(['private:read', 'private:write'])]
     private ?string $titlePrivateSpace = null;
 
     #[ORM\Column(type: Types::TEXT)]
+    #[Groups(['private:read', 'private:write'])]
     private ?string $descriptionPrivateSpace = null;
 
     #[ORM\Column]
+    #[Groups(['private:read', 'private:write'])]
     private ?int $capacity = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 6, scale: 2)]
+    #[Groups(['private:read', 'private:write'])]
     private ?string $areaM2 = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 7, scale: 2)]
+    #[Groups(['private:read', 'private:write'])]
     private ?string $pricePerMonth = null;
 
     #[ORM\Column]
+    #[Groups(['private:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
-    #[ORM\Column]
-    private ?bool $isActive = null;
+    #[ORM\Column(options: ['default' => false])]
+    #[Groups(['private:read', 'private:write'])]
+    private ?bool $isActive = false;
 
+    #[Groups(['private:read'])]
     #[ORM\ManyToOne(inversedBy: 'privateSpaces')]
     #[ORM\JoinColumn(nullable: false)]
     private ?ColivingSpace $colivingSpace = null;
@@ -56,8 +74,8 @@ class PrivateSpace
     #[ORM\OneToMany(targetEntity: VerificationSpace::class, mappedBy: 'privateSpace')]
     private Collection $verificationSpaces;
 
-    // Commodités associées à cet espace
     #[ORM\ManyToMany(targetEntity: Amenity::class, inversedBy: 'privateSpaces')]
+    #[Groups(['private:read'])]
     private Collection $amenities;
 
     public function __construct()
@@ -66,7 +84,10 @@ class PrivateSpace
         $this->photos = new ArrayCollection();
         $this->verificationSpaces = new ArrayCollection();
         $this->amenities = new ArrayCollection();
+        $this->createdAt = new \DateTimeImmutable();
     }
+
+    // GETTERS & SETTERS
 
     public function getId(): ?int { return $this->id; }
 
@@ -101,10 +122,6 @@ class PrivateSpace
     }
 
     public function getCreatedAt(): ?\DateTimeImmutable { return $this->createdAt; }
-    public function setCreatedAt(\DateTimeImmutable $createdAt): static {
-        $this->createdAt = $createdAt;
-        return $this;
-    }
 
     public function getUpdatedAt(): ?\DateTimeImmutable { return $this->updatedAt; }
     public function setUpdatedAt(?\DateTimeImmutable $updatedAt): static {
@@ -125,21 +142,22 @@ class PrivateSpace
     }
 
     public function getReservations(): Collection { return $this->reservations; }
+
     public function getPhotos(): Collection { return $this->photos; }
+
     public function getVerificationSpaces(): Collection { return $this->verificationSpaces; }
 
     public function getAmenities(): Collection { return $this->amenities; }
+
     public function addAmenity(Amenity $amenity): static {
         if (!$this->amenities->contains($amenity)) {
             $this->amenities->add($amenity);
-            $amenity->addPrivateSpace($this);
         }
         return $this;
     }
+
     public function removeAmenity(Amenity $amenity): static {
-        if ($this->amenities->removeElement($amenity)) {
-            $amenity->removePrivateSpace($this);
-        }
+        $this->amenities->removeElement($amenity);
         return $this;
     }
 }
